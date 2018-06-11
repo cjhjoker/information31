@@ -8,7 +8,7 @@ from flask.ext.wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session #Session是用来指定session的存储位置
 from config import config_dict
-from info.modules.index import index_blue
+
 # 1、配置SQLAlchemy 导入数据库扩展，并在配置中填写相关配置
 # 2、创建redis存储对象，并在配置中填写相关配置
 # 3、CSRF 包含请求体的请求都需要开启CSRF
@@ -46,6 +46,7 @@ def create_app(config_name):
     Session(app)
 
     # 注册首页蓝图对象
+    from info.modules.index import index_blue
     app.register_blueprint(index_blue)
 
     return app

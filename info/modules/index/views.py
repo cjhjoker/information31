@@ -6,7 +6,9 @@ from flask import render_template, current_app
 # 2、装饰视图函数
 @index_blue.route('/',methods=["GET","POST"])
 def hello_world():
-
+    redis_store.set("name","haha")
+    name = redis_store.get("name")
+    print(name)
 
     return render_template('news/index.html')
 
