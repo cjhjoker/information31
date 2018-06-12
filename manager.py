@@ -1,27 +1,22 @@
-# -*- 若无相欠，怎会相见 -*-
+#coding:utf8
+import logging
+
+from flask import current_app
+from flask_migrate import Migrate,MigrateCommand
 from flask_script import Manager
-from flask_migrate import Migrate, MigrateCommand
-from info import create_app,db
+from info import create_app,db,models
 
-# 调用工厂方法
+#调用工厂方法
 app = create_app("develop")
-# 1、配置SQLAlchemy 导入数据库扩展，并在配置中填写相关配置
-# 2、创建redis存储对象，并在配置中填写相关配置
-# 3、CSRF 包含请求体的请求都需要开启CSRF
-# 4、设置session 利用 flask-session扩展，将 session 数据保存到 Redis 中
-# 5、Flask-Script与数据库迁移扩展
-
-# 数据库迁移
-manager = Manager(app)
-Migrate(app, db)
-manager.add_command("db", MigrateCommand)
-
-@app.route('/',methods=['get', 'post'])
-def index():
 
 
-    return "index"
+#配置数据库迁移命令
+manager = Manager(app) #创建manager管理app
+Migrate(app,db) #将app和db关联
+manager.add_command("db",MigrateCommand)#给manager添加操作命令
 
 
 if __name__ == '__main__':
+    print(app.url_map)
+
     manager.run()
