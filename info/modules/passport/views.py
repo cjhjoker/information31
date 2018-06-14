@@ -14,12 +14,12 @@ from . import passport_blu
 # 请求路径: /passport/logout
 # 请求方式: POST
 # 请求参数: 无
-# 返回值: errno, errmsg
+# 返回值: errno, errmsg(跟前端做交互)
 @passport_blu.route('/logout', methods=['POST'])
 def logout():
 
     #清除session中的数据
-    # session.clear()
+    # session.clear() 全部清除
     session.pop("user_id","")
     session.pop("nick_name","")
     session.pop("mobile","")
