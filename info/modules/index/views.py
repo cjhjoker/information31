@@ -3,7 +3,7 @@ from flask import session
 
 from info import constants
 from info import redis_store
-from info.models import User,News
+from info.models import User,News,Category
 from . import index_blue
 from flask import render_template, current_app
 
@@ -31,12 +31,23 @@ def hello_world():
     for news in click_news:
         click_news_list.append(news.to_dict())
 
+    #获取所有的分类数据
+    try:
+        categoies =  Category.query.all()
+    except Exception as e:
+        current_app.logger.error(e)
+
+    #将分类对象列表转成字典列表
+    category_list = []
+    for categoy in categoies:
+        category_list.append(categoy.to_dict())
+
     #返回前端页面
     data = {
         #如果user为空反会None,如果有内容返回左边
         "user_info":user.to_dict() if user else None,
         "click_news_list":click_news_list,
-        # "categoies":category_list
+        "categoies":category_list
     }
 
     return render_template('news/index.html', data=data)
