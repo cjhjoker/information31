@@ -4,7 +4,7 @@ from logging.handlers import RotatingFileHandler
 
 import redis
 from flask import Flask
-from flask.ext.wtf import CSRFProtect
+from flask_wtf.csrf import CSRFProtect,generate_csrf
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session #Session是用来指定session的存储位置
 from config import config_dict
@@ -41,9 +41,14 @@ def create_app(config_name):
     redis_store = redis.StrictRedis(host=config.REDIS_HOST, port=config.REDIS_PORT, decode_responses = True)
 
     # CSRFProtect只做验证工作，cookie中的 csrf_token 和表单中的 csrf_token 需要我们自己实现
-    # 创建对象关联app
 
-    # CSRFProtect(app)
+    #设置应用程序CSRF保护
+    # 开了了csrf保护之后,会对['POST', 'PUT', 'PATCH', 'DELETE']类型的请求方法做校验
+    # 获取cookie中的csrf_token, 获取headers请求头里面的csrf_token做校验,只做校验
+    # 开发者: 需要手动设置,cookie, headers中的csrf_token
+    CSRFProtect(app)
+
+    # 创建对象关联app
     Session(app)
 
     # 注册首页蓝图对象
@@ -53,6 +58,13 @@ def create_app(config_name):
     #注册验证蓝图对象
     from info.modules.passport import passport_blu
     app.register_blueprint(passport_blu)
+
+    #设置请求钩子,after_request,每次请求完成之后都会走该钩子修饰的方法
+    @app.after_request
+    def after_request(resp):
+        csrf_token = generate_csrf()
+        resp.set_cookie("csrf_token",csrf_token)
+        return resp
 
     return app
 

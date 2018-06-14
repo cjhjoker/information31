@@ -12,6 +12,7 @@ class Config(object):
     #数据库配置
     SQLALCHEMY_DATABASE_URI = "mysql://root:mysql@127.0.0.1:3306/information31"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_COMMIT_ON_TEARDOWN = True # 数据库内容发送改变之后自动提交
 
     #redis的配置
     REDIS_HOST = "127.0.0.1"
