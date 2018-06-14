@@ -6,7 +6,8 @@ from flask import current_app, jsonify
 from flask import make_response
 from flask import request
 
-from info import redis_store
+from info import redis_store, db
+from info.models import User
 from info.utils.captcha.captcha import captcha
 from . import passport_blu
 from info import constants
@@ -18,6 +19,68 @@ from info.utils.response_code import RET
 # 返回值: errno, errmsg
 
 
+#注册用户
+# 请求路径: /passport/register
+# 请求方式: POST
+# 请求参数: mobile, sms_code,password
+# 返回值: errno, errmsg
+@passport_blu.route('/register',methods=["post"])
+def register():
+    """
+    1、请求参数 mobile sms_code password
+    2、判断是否为空 判断手机号格式
+    3、通过手机号取出redis中的sms_code
+    4、判断是否过期
+    5、判断是否相等
+    6、创建用户对象，设置对象属性
+    7、保存到数据库
+    8、返回前端页面
+    :return:
+    """
+    # 1.获取参数 三种方式获取到字典,先转成json,再次转成字典/ get_json / json
+    #第一种:
+    # json_data = request.data
+    # dict_data = json.loads(json_data)
+    #第二种:
+    # dict_data =  request.get_json()
+    #第三种:
+    dict_data = request.json
+    mobile = dict_data.get("mobile")
+    sms_code = dict_data.get("sms_code")
+    password = dict_data.get("password")
+    # 2.校验参数(为空校验,手机号格式校验)
+    if not all([mobile,sms_code,password]):
+        return jsonify(errno=RET.PARAMERR, errmsg="参数不完整")
+
+    # 2.1验证手机号格式
+    if not re.match('1[356789]\\d{9}',mobile):
+        return jsonify(errno=RET.DATAERR,errmsg="手机号格式不正确")
+    # 3.通过手机号取出redis中的短信验证码
+    try:
+        redis_sms_code = redis_store.get("sms_code=%s"%mobile)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR,errmsg="获取短信验证码异常")
+    # 4.判断是否过期
+    if not redis_sms_code:
+        return jsonify(errno=RET.DATAERR, errmsg="短信验证码填写错误")
+    # 5.判断是否相等
+    if redis_sms_code != sms_code:
+        return jsonify(errno=RET.DATAERR, errmsg="短信验证码填写错误")
+    # 6.创建用户对象,设置属性
+    user = User()
+    user.nick_name = mobile
+    user.mobile = mobile
+    user.password_hash = password
+    # 7.保存到数据库
+    try:
+        db.session.add(user)
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR,errmsg="用户保存异常")
+    # 8.返回前端页面
+    return jsonify(errno=RET.OK, errmsg="注册成功")
 
 
 #短信验证码
@@ -25,7 +88,7 @@ from info.utils.response_code import RET
 # 请求方式: POST
 # 请求参数: mobile, image_code,image_code_id
 # 返回值: errno, errmsg
-@passport_blu.route('/smscode')
+@passport_blu.route('/smscode',methods=["post"])
 def send_sms():
     """
     1. 接收参数
@@ -48,11 +111,11 @@ def send_sms():
 
     # 2.校验参数为空情况
     if not all([mobile,image_code,image_code_id]):
-        return jsonify(error=RET.PARAMERR, errmsg = "参数不完整")
+        return jsonify(errno=RET.PARAMERR, errmsg = "参数不完整")
 
     # 3.验证手机号格式
     if re.match(r'1[356789]\d{9}',mobile):
-        return jsonify(error=RET.DATAERR, errmsg="手机号格式不正确")
+        return jsonify(errno=RET.DATAERR, errmsg="手机号格式不正确")
     # 4.通过image_code_id取出redis中的图片验证码
     try:
         redis_image_code = redis_store.get("image_code_id")

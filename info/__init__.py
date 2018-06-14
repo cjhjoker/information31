@@ -42,7 +42,8 @@ def create_app(config_name):
 
     # CSRFProtect只做验证工作，cookie中的 csrf_token 和表单中的 csrf_token 需要我们自己实现
     # 创建对象关联app
-    CSRFProtect(app)
+
+    # CSRFProtect(app)
     Session(app)
 
     # 注册首页蓝图对象
