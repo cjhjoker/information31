@@ -8,6 +8,8 @@ from flask_wtf.csrf import CSRFProtect,generate_csrf
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session #Session是用来指定session的存储位置
 from config import config_dict
+from info.utils.common import do_index_filter
+
 
 # 1、配置SQLAlchemy 导入数据库扩展，并在配置中填写相关配置
 # 2、创建redis存储对象，并在配置中填写相关配置
@@ -15,6 +17,8 @@ from config import config_dict
 # 4、设置session 利用 flask-session扩展，将 session 数据保存到 Redis 中
 # 5、Flask-Script与数据库迁移扩展
 # 创建对象db
+
+
 db = SQLAlchemy()
 
 redis_store = None
@@ -65,6 +69,9 @@ def create_app(config_name):
         csrf_token = generate_csrf()
         resp.set_cookie("csrf_token",csrf_token)
         return resp
+
+    #将过滤器添加到模板过滤器列表中
+    app.add_template_filter(do_index_filter,"index_filter")
 
     return app
 

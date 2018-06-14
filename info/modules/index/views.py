@@ -1,8 +1,9 @@
 # -*- 若无相欠，怎会相见 -*-
 from flask import session
 
+from info import constants
 from info import redis_store
-from info.models import User
+from info.models import User,News
 from . import index_blue
 from flask import render_template, current_app
 
@@ -18,15 +19,27 @@ def hello_world():
             user = User.query.get(user_id)
         except Exception as e:
             current_app.logger.error(e)
+
+    # 查询数据库,按照点击量,前10名的新闻(反向排序)
+    try:
+        click_news = News.query.order_by(News.clicks.desc()).limit(constants.CLICK_RANK_MAX_NEWS).all()
+    except Exception as e:
+        current_app.logger.error(e)
+
+    #将对象列表,转成字典列表
+    click_news_list = []
+    for news in click_news:
+        click_news_list.append(news.to_dict())
+
     #返回前端页面
     data = {
         #如果user为空反会None,如果有内容返回左边
         "user_info":user.to_dict() if user else None,
-        # "click_news_list":click_news_list,
+        "click_news_list":click_news_list,
         # "categoies":category_list
     }
 
-    return render_template('news/index.html')
+    return render_template('news/index.html', data=data)
 
 
 #每个网站都会去设置/favicon.ico小logo图标
