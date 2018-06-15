@@ -63,6 +63,10 @@ def create_app(config_name):
     from info.modules.passport import passport_blu
     app.register_blueprint(passport_blu)
 
+    # 注册新闻蓝图对象
+    from info.modules.news import news_blu
+    app.register_blueprint(news_blu)
+
     #设置请求钩子,after_request,每次请求完成之后都会走该钩子修饰的方法
     @app.after_request
     def after_request(resp):
