@@ -1,10 +1,12 @@
 # -*- 若无相欠，怎会相见 -*-
+from flask import g
 from flask import request, jsonify
 from flask import session
 
 from info import constants
 from info import redis_store
 from info.models import User,News,Category
+from info.utils.common import user_login_data
 from info.utils.response_code import RET
 from . import index_blue
 from flask import render_template, current_app
@@ -71,16 +73,17 @@ def newslist():
 
 # 2、首页新闻信息
 @index_blue.route('/',methods=["GET","POST"])
+@user_login_data
 def index():
-    #获取用户编号
-    user_id = session.get("user_id")
-    #通过编号获取数据库用户对象
-    user = None
-    if user_id:
-        try:
-            user = User.query.get(user_id)
-        except Exception as e:
-            current_app.logger.error(e)
+    # #获取用户编号
+    # user_id = session.get("user_id")
+    # #通过编号获取数据库用户对象
+    # user = None
+    # if user_id:
+    #     try:
+    #         user = User.query.get(user_id)
+    #     except Exception as e:
+    #         current_app.logger.error(e)
 
     # 查询数据库,按照点击量,前10名的新闻(反向排序)
     try:
@@ -107,7 +110,7 @@ def index():
     #返回前端页面
     data = {
         #如果user为空反会None,如果有内容返回左边
-        "user_info":user.to_dict() if user else None,
+        "user_info":g.user.to_dict() if g.user else None,
         "click_news_list":click_news_list,
         "categoies":category_list
     }
