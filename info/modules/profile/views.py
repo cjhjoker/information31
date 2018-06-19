@@ -7,6 +7,10 @@ from info.utils.response_code import RET
 from . import profile_blu
 from flask import render_template,g,redirect,request,jsonify
 
+
+
+
+
 #新闻收藏列表
 @profile_blu.route('/collection')
 @user_login_data
@@ -47,7 +51,6 @@ def news_collection():
     }
     # 7、返回相应
     return render_template("news/user_collection.html",data = data)
-
 
 
 
