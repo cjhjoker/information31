@@ -1,9 +1,18 @@
 # -*- coding:utf8 -*-
-from flask import redirect
-from flask import url_for
+from flask import url_for,redirect,g
 from info.models import User
+from info.utils.common import user_login_data
 from . import admin_blu
 from flask import render_template,request,current_app,session
+
+
+#管理员首页
+@admin_blu.route('/index')
+@user_login_data
+def index():
+
+    return render_template('admin/index.html',user=g.user.to_admin_dict())
+
 
 
 #显示管理员登陆页面
