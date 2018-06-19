@@ -1,9 +1,94 @@
 # -*- coding:utf8 -*-
-from flask import url_for,redirect,g
+import datetime
+import time
+from flask import url_for,redirect,g, jsonify
 from info.models import User
 from info.utils.common import user_login_data
+from info.utils.response_code import RET
 from . import admin_blu
 from flask import render_template,request,current_app,session
+
+
+#管理员,用户列表页面统计
+# 请求路径: /admin/user_count
+# 请求方式: GET
+# 请求参数: 无
+# 返回值:渲染页面user_count.html,字典数据
+@admin_blu.route('/user_count')
+def user_count():
+
+    # 1.获取当前程序总人数
+    try:
+        total_count = User.query.filter(User.is_admin == False).count()
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="查询总人数错误")
+
+    #2、获取月活人数
+    cal = time.localtime()# 当前时间
+    try:
+
+        # 计算月初时间
+        mon_start_str = "%d-%d-01"%(cal.tm_year,cal.tm_mon)
+        mon_start_date = datetime.strptime(mon_start_str,"%Y-%m-%d")
+
+        #查询当前月活人数
+        mon_count =  User.query.filter(User.last_login >= mon_start_date,User.is_admin == False).count()
+
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="查询月活人数错误")
+
+    #3.日活人数
+    try:
+
+        #计算日初时间,6月19, 0:00
+        day_start_str = "%d-%d-%d"%(cal.tm_year,cal.tm_mon,cal.tm_mday)
+        day_start_date =  datetime.strptime(day_start_str,"%Y-%m-%d")
+
+        #查询当前月活人数
+        day_count =  User.query.filter(User.last_login >= day_start_date,User.is_admin == False).count()
+
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR,errmsg="查询总人数错误")
+
+
+    # 4.日期活跃, 日期活跃所对应的人数
+    active_date = []
+    active_count = []
+
+    for i in range(0, 31):
+        # 当天开始时间A
+        begin_date = day_start_date - datetime.timedelta(days=i)
+        # 当天开始时间, 的后一天B
+        end_date = day_start_date - datetime.timedelta(days=i - 1)
+
+        # 添加当天开始时间字符串到, 活跃日期中
+        active_date.append(begin_date.strftime("%Y-%m-%d")) #显示x轴数据，可修改：%m-%d
+
+        # 查询时间A到B这一天的注册人数
+        everyday_active_count = User.query.filter(User.is_admin == False, User.last_login >= begin_date,
+                                                  User.last_login <= end_date).count()
+
+        # 添加当天注册人数到,获取数量中
+        active_count.append(everyday_active_count)
+
+
+    #反转日期和人数
+    active_date.reverse()
+    active_count.reverse()
+
+    # 5.拼接成data展示到页面中
+    data = {
+        "total_count": total_count,
+        "mon_count": mon_count,
+        "day_count": day_count,
+        "active_date": active_date,
+        "active_count": active_count
+    }
+
+    return render_template('admin/user_count.html', data=data)
 
 
 #管理员首页
