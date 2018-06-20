@@ -8,6 +8,46 @@ from info.utils.response_code import RET
 from . import profile_blu
 from flask import render_template,g,redirect,request,jsonify
 
+#新闻列表展示
+@profile_blu.route('/news_list')
+@user_login_data
+def news_list():
+    # 1.获取参数,分页
+    page = request.args.get("p",1)
+
+    # 2.参数类型转换
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = 1
+
+    #3.分页查询
+    try:
+        paginate = News.query.filter(News.user_id == g.user.id).order_by(News.create_time.desc()).paginate(page,3,False)
+    except Exception as e:
+        current_app.logger.error(e)
+
+        return jsonify(errno=RET.DBERR, errmsg="查询异常")
+
+    # 4.获取分页对象数据
+    total_page = paginate.pages
+    current_page = paginate.page
+    items = paginate.items
+
+    #5.转成字典数据
+    news_list = []
+    for news in items:
+        news_list.append(news.to_review_dict()) # review中带有控制审核状态的变量status
+
+    #6.返回到页面中,渲染
+    data = {
+        "total_page":total_page,
+        "current_page":current_page,
+        "news_list":news_list
+    }
+
+    return render_template('news/user_news_list.html',data=data)
 
 #新闻发布
 # 请求路径: /user/news_release
