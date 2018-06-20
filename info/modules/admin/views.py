@@ -2,11 +2,67 @@
 import datetime
 import time
 from flask import url_for,redirect,g, jsonify
+
+from info import constants
 from info.models import User
 from info.utils.common import user_login_data
 from info.utils.response_code import RET
 from . import admin_blu
 from flask import render_template,request,current_app,session
+
+
+#获取用户列表
+# 请求路径: /admin/user_list
+# 请求方式: GET
+# 请求参数: p
+# 返回值:渲染user_list.html页面,data字典数据
+@admin_blu.route('/user_list')
+def user_list():
+    """
+    #1、获取参数，page页数p
+    #2、转成整数
+    #3、分页查询
+    #4、获取分页对象数据：总页数、当前页、对象列表
+    #5、转换成字典列表
+    #6、拼接data，返回数据
+    :return:
+    """
+    #1、获取参数，page页数p
+    page = request.args.get("p",1)
+
+    #2、转成整数
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = 1
+
+    #3、分页查询
+    try:
+        paginate = User.query.filter(User.is_admin == False).order_by(User.last_login.desc()).paginate(page,10,False)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="数据库查询失败")
+
+    #4、获取分页对象数据：总页数、当前页、对象列表
+    total_page = paginate.pages
+    current_page = paginate.page
+    items = paginate.items
+
+    #5、转换成字典列表
+    user_list = []
+    for user in items:
+        user_list.append(user.to_admin_dict())
+
+    #6、拼接data，返回数据
+    data = {
+        "total_page": total_page,
+        "current_page": current_page,
+        "user_list": user_list
+    }
+
+    return render_template("admin/user_list.html",data = data)
+
 
 
 #管理员退出

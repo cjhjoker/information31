@@ -82,5 +82,5 @@ def add_test_users():
 
 if __name__ == '__main__':
     print(app.url_map)
-
+    add_test_users()
     manager.run()
