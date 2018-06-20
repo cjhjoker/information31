@@ -9,6 +9,19 @@ from . import admin_blu
 from flask import render_template,request,current_app,session
 
 
+#管理员退出
+@admin_blu.route('/logout', methods=['DELETE'])
+def logout():
+
+    session.pop("user_id","")
+    session.pop("nick_name","")
+    session.pop("mobile","")
+    session.pop("is_admin","")
+
+    return jsonify(errno=RET.OK,errmsg="退出成功")
+
+
+
 #管理员,用户列表页面统计
 # 请求路径: /admin/user_count
 # 请求方式: GET
