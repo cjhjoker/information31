@@ -3,12 +3,82 @@ import datetime
 import time
 from flask import url_for,redirect,g, jsonify
 
-from info import constants
+from info import constants, db
 from info.models import User, News,Category
 from info.utils.common import user_login_data
 from info.utils.response_code import RET
 from . import admin_blu
 from flask import render_template,request,current_app,session
+
+
+#新闻分类修改&增加
+# 请求路径: /admin/add_category
+# 请求方式: POST
+# 请求参数: id,name
+# 返回值:errno,errmsg
+@admin_blu.route('/add_category', methods=['POST'])
+def add_category():
+    #1.获取参数
+    category_id = request.json.get("id")
+    category_name = request.json.get("name")
+
+    #2.判断是否有分类名称
+    if not category_name: return jsonify(errno=RET.NODATA,errmsg="分类名不能为空")
+
+    #3.判断到底是增加还是编辑, 通过category_id
+    if category_id: # 编辑
+        # 获取分类
+        try:
+            category = Category.query.get(category_id)
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg="分类查询失败")
+
+        #判断分类是否存在
+        if not category: return jsonify(errno=RET.NODATA,errmsg="分类不存在")
+
+        #设置名称
+        category.name = category_name
+
+    else: # 增加分类
+        #创建分类对象，设置属性
+        category = Category()
+        category.name = category_name
+        db.session.add(category)
+
+    #4、提交到数据库
+    try:
+        db.session.commit()
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="操作失败")
+
+    #5.返回响应
+    return jsonify(errno=RET.OK,errmsg="操作成功")
+
+
+#新闻分类列表获取
+# 请求路径: /admin/news_category
+# 请求方式: GET
+# 请求参数: GET,无
+# 返回值:GET,渲染news_type.html页面, data数据
+@admin_blu.route('/news_category')
+def news_category():
+
+    #1.查询所有分类
+    try:
+        categories = Category.query.all()
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR,errmsg="分类查询失败")
+
+    #2.转成字典数据
+    category_list=[]
+    for category in categories:
+        category_list.append(category.to_dict())
+
+    #3.渲染页面
+    return render_template('admin/news_type.html',categories=category_list)
 
 
 #新闻编辑详情
