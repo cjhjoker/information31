@@ -4,11 +4,103 @@ import time
 from flask import url_for,redirect,g, jsonify
 
 from info import constants
-from info.models import User, News
+from info.models import User, News,Category
 from info.utils.common import user_login_data
 from info.utils.response_code import RET
 from . import admin_blu
 from flask import render_template,request,current_app,session
+
+
+#新闻编辑详情
+# 请求路径: /admin/news_edit_detail
+# 请求方式: GET, POST
+# 请求参数: GET, news_id, POST(news_id,title,digest,content,index_image,category_id)
+# 返回值:GET,渲染news_edit_detail.html页面,data字典数据,
+@admin_blu.route('/news_edit_detail',methods=["GET","POST"])
+def news_edit_detail():
+    # 一、GET请求
+    # 如果第一次进来,获取数据展示
+    if request.method == 'GET':
+        # 1.获取参数,news_id
+        news_id = request.args.get("news_id")
+
+        # 2.校验参数
+        if not news_id: return jsonify(errno=RET.PARAMERR, errmsg="新闻编号不存在")
+
+        # 3.查询数据库,获取新闻对象
+        try:
+            news = News.query.get(news_id)
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg="查询失败")
+
+        # 4.判断新闻对象是否存在
+        if not news:
+            return jsonify(errno=RET.NODATA, errmsg="新闻不存在")
+
+        # 查询所有分类
+        try:
+            categories = Category.query.all()
+            categories.pop(0) # 删除最新分类
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg="查询失败")
+
+        # 转成字典对象
+        category_list = []
+        for category in categories:
+            category_list.append(category.to_dict())
+
+        # 5.返回新闻对象字典数据到页面中
+        return render_template('admin/news_edit_detail.html', news=news.to_dict(), categories=category_list)
+
+    # 二、如果是POST,做修改操作
+    #1.获取参数
+    news_id = request.form.get("news_id")
+    title = request.form.get("title")
+    digest = request.form.get("digest")
+    content = request.form.get("content")
+    index_image = request.files.get("index_image")
+    category_id = request.form.get("category_id")
+
+    #2.校验参数
+    if not all([news_id,title,digest,content,index_image,category_id]):
+        return jsonify(errno=RET.PARAMERR,errmsg="参数不全")
+
+    # 3.获取新闻对象
+    try:
+        news = News.query.get(news_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="数据库查询失败")
+
+    # 4.判断新闻是否存在
+    if not news: return jsonify(errno=RET.NODATA, errmsg="新闻不存在")
+
+    # 5.上传图片
+    # try:
+    #     # 读取图片
+    #     image_data = index_image.read()
+    #
+    #     # 上传
+    #     image_name = image_storage(image_data)
+    # except Exception as e:
+    #     current_app.logger.error(e)
+    #     return jsonify(errno=RET.THIRDERR, errmsg="七牛云异常")
+    #
+    # # 6.判断图片是否上传
+    # if not image_name:
+    #     return jsonify(errno=RET.NODATA, errmsg="图片上传失败")
+
+    #7.设置属性到新闻对象中
+    news.title = title
+    news.digest = digest
+    news.content = content
+    # news.index_image_url = constants.QINIU_DOMIN_PREFIX + image_name
+    news.category_id = category_id
+
+    #8.返回响应
+    return jsonify(errno=RET.OK,errmsg="编辑成功")
 
 
 
