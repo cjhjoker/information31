@@ -4,11 +4,127 @@ import time
 from flask import url_for,redirect,g, jsonify
 
 from info import constants
-from info.models import User
+from info.models import User, News
 from info.utils.common import user_login_data
 from info.utils.response_code import RET
 from . import admin_blu
 from flask import render_template,request,current_app,session
+
+#新闻审核, 详情
+# 请求路径: /admin/news_review_detail
+# 请求方式: GET,POST
+# 请求参数: GET, news_id, POST,news_id, action
+# 返回值:GET,渲染news_review_detail.html页面,data字典数据
+@admin_blu.route('/news_review_detail',methods=["GET","POST"])
+def news_review_detail():
+    # 一、如果是get请求
+    if request.method == "GET":
+        #1、get请求，获取参数news_id
+        news_id = request.args.get("news_id")
+
+        #2、检验参数是否为空
+        if not news_id: return jsonify(errno=RET.PARAMERR, errmsg="新闻编号不存在")
+
+        #3、查询新闻对象，判断是否为空
+        try:
+            news = News.query.get(news_id)
+        except Exception as e:
+            current_app.logger.error(e)
+            return jsonify(errno=RET.DBERR, errmsg="查询失败")
+
+        if not news:
+            return jsonify(errno=RET.NODATA, errmsg="新闻不存在")
+
+
+        #4、返回数据
+        return render_template('admin/news_review_detail.html', news=news.to_dict())
+    # 二、如果是POST请求，说明做了审核操作
+    #1.获取参数
+    news_id = request.json.get("news_id")
+    action = request.json.get("action")
+
+    #2.校验参数
+    if not all([news_id,action]):
+        return jsonify(errno=RET.NODATA,errmsg="参数不全")
+
+    #校验操作类型
+    if not action in ["accept","reject"]:
+        return jsonify(errno=RET.DATAERR, errmsg="操作类型有误")
+
+    #3.查询新闻对象
+    try:
+        news = News.query.get(news_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="数据库查询异常")
+
+    #4.判断新闻是否存在
+    if not news: return jsonify(errno=RET.NODATA,errmsg="新闻不存在")
+
+    #5.根据操作类型,通过/拒绝
+    if action == "accept":
+        news.status = 0
+    else:
+        reason = request.json.get("reason")
+        if not reason: return jsonify(errno=RET.NODATA,errmsg="需要填写拒绝原因")
+        news.status = -1
+        news.reason = reason
+
+    #5.返回响应
+    return jsonify(errno=RET.OK,errmsg="操作成功")
+
+
+#新闻审核列表
+# 请求路径: /admin/news_review
+# 请求方式: GET
+# 请求参数: GET, p,keywords
+# 返回值:渲染user_list.html页面,data字典数据
+#新闻审核列表
+@admin_blu.route('/news_review')
+def news_review():
+    #1、获取参数
+    page = request.args.get("p",1)
+    keywords = request.args.get("keywords")
+
+    #2、转换int类型
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = 1
+
+    #3、分页查询
+    try:
+
+        # 判断是否有搜索关键字
+        filters = [News.status != 0]
+        if keywords:
+            filters.append(News.title.contains(keywords)) #contains搜索包含有关键字的新闻标题，
+            # endswith以关键字结尾，startswith以关键字开始
+
+        paginate = News.query.filter(*filters).order_by(News.create_time.desc()).paginate(page, 10, False)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="数据库查询失败")
+
+    #4、获取分页查询数据：总页数，当前页，对象列表
+    total_page = paginate.pages
+    current_page = paginate.page
+    items = paginate.items
+
+    #5、转换成字典列表
+    news_list = []
+    for news in items:
+        news_list.append(news.to_review_dict())
+
+    #6、拼接data，返回响应
+    data = {
+        "total_page":total_page,
+        "current_page":current_page,
+        'news_list':news_list
+    }
+
+    return render_template('admin/news_review.html',data=data)
 
 
 #获取用户列表

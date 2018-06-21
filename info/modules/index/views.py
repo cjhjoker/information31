@@ -42,7 +42,7 @@ def newslist():
     # 3.根据条件查询数据
     try:
         # 判断分类编号是否不等于 1
-        filters=[]
+        filters=[News.status == 0]
         if cid != "1":
             filters.append(News.category_id == cid) #新闻分类id==分类编号
         # 查询新闻数据根据条件 获取paginate对象
