@@ -3,13 +3,13 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 import redis
-from flask import Flask
+from flask import Flask,render_template
+from flask import g
 from flask_wtf.csrf import CSRFProtect,generate_csrf
 from flask_sqlalchemy import SQLAlchemy
 from flask_session import Session #Session是用来指定session的存储位置
 from config import config_dict
-from info.utils.common import do_index_filter
-
+from info.utils.common import do_index_filter, user_login_data
 
 # 1、配置SQLAlchemy 导入数据库扩展，并在配置中填写相关配置
 # 2、创建redis存储对象，并在配置中填写相关配置
@@ -74,6 +74,15 @@ def create_app(config_name):
     # 注册新闻蓝图对象
     from info.modules.admin import admin_blu
     app.register_blueprint(admin_blu)
+
+    # 设置404错误页面统一处理
+    @app.errorhandler(404)
+    @user_login_data
+    def page_not_found(resp):
+        """
+        这个handler可以catch住所有abort(404)以及找不到对应router的处理请求
+        """
+        return render_template("news/404.html",data={"user_info":g.user.to_dict()})
 
     #设置请求钩子,after_request,每次请求完成之后都会走该钩子修饰的方法
     @app.after_request
