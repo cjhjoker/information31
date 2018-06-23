@@ -2,11 +2,159 @@
 from flask import current_app
 
 from info import constants, db
-from info.models import News, Category
+from info.models import News, Category, User
 from info.utils.common import user_login_data
 from info.utils.response_code import RET
 from . import profile_blu
 from flask import render_template,g,redirect,request,jsonify
+
+
+# 作者详情页面,新闻列表
+# 请求路径: /user/other_news_list
+# 请求方式: GET
+# 请求参数:p,user_id
+# 返回值: errno,errmsg
+@profile_blu.route('/other_news_list')
+def other_news_list():
+    # 1.获取参数
+    page = request.args.get("p", 1)
+    author_id = request.args.get("user_id")
+
+    # 2.校验参数
+    if not author_id:
+        return jsonify(errno=RET.PARAMERR, errmsg="参数不全")
+
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = 1
+
+    # 3.获取用户对象
+    try:
+        author = User.query.get(author_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="数据库查询异常")
+
+    if not author: return jsonify(errno=RET.NODATA, errmsg="作者不存在")
+
+    # 4.查询作者新闻列表
+    try:
+        paginate = author.news_list.paginate(page, 3, False)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="数据库查询异常")
+
+    # 5.获取分页对象,总页数,当前页,对象列表
+    total_page = paginate.pages
+    current_page = paginate.page
+    items = paginate.items
+
+    # 6.对象列表转成字典列表
+    news_list = []
+    for news in items:
+        news_list.append(news.to_dict())
+
+    # 7.封装data数据,响应
+    data = {
+        "total_page": total_page,
+        "current_page": current_page,
+        "news_list": news_list
+    }
+
+    return jsonify(errno=RET.OK, errmsg="查询成功", data=data)
+
+
+# 作者详情页面
+# 请求路径: /user/other
+# 请求方式: GET
+# 请求参数:id
+# 返回值: 渲染other.html页面,字典data数据
+@profile_blu.route('/other')
+@user_login_data
+def other():
+    # 1.获取参数,作者编号
+    author_id = request.args.get("id")
+
+    # 2.判断编号是否存在
+    if not author_id: return jsonify(errno=RET.PARAMERR, errmsg="编号不存在")
+
+    # 3.查询作者对象
+    try:
+        author = User.query.get(author_id)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="数据库查询异常")
+
+    # 4.判断作者是否存在
+    if not author: return jsonify(errno=RET.NODATA, errmsg="该作者不存在")
+
+    # 当前用户是否有关注作者
+    is_followed = False
+    if g.user:
+        if g.user in author.followers:
+            is_followed = True
+
+    # 5.拼接数据返回
+    data = {
+        "user_info": g.user.to_dict() if g.user else None,
+        "author": author.to_dict(),
+        "is_followed": is_followed
+    }
+
+    # 返回页面携带数据
+    return render_template('news/other.html', data=data)
+
+
+# 获取我的关注列表
+# 请求路径: /user/user_follow
+# 请求方式: GET
+# 请求参数:p
+# 返回值: 渲染user_follow.html页面,字典data数据
+@profile_blu.route('/user_follow')
+@user_login_data
+def user_follow():
+    # 1.获取参数,page
+    page = request.args.get("p", 1)
+
+    # 2.参数类型转换
+    try:
+        page = int(page)
+    except Exception as e:
+        current_app.logger.error(e)
+        page = 1
+
+    # 3.分页查询
+    try:
+        # 分页获取关注的人,
+        paginate = g.user.followed.paginate(page, 4, False)
+    except Exception as e:
+        current_app.logger.error(e)
+        return jsonify(errno=RET.DBERR, errmsg="查询失败")
+
+    # 4.获取分页对象数据
+    total_page = paginate.pages
+    current_page = paginate.page
+    items = paginate.items
+
+    # 5.转成字典数据
+    author_list = []
+    for user in items:
+        author_list.append(user.to_dict())
+
+    # 6.返回到页面中,渲染
+    data = {
+        "total_page": total_page,
+        "current_page": current_page,
+        "author_list": author_list
+    }
+
+    return render_template('news/user_follow.html', data=data)
+
+
+
+
 
 #新闻列表展示
 @profile_blu.route('/news_list')
